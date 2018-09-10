@@ -151,6 +151,9 @@ class Parser : public CodeCompletionHandler {
   mutable IdentifierInfo *Ident_GNU_final;
   mutable IdentifierInfo *Ident_override;
 
+  mutable IdentifierInfo *Ident_implements;
+  mutable IdentifierInfo *Ident_extends;
+
   // C++ type trait keywords that can be reverted to identifiers and still be
   // used as type traits.
   llvm::SmallDenseMap<IdentifierInfo *, tok::TokenKind> RevertibleTypeTraits;
@@ -313,6 +316,7 @@ class Parser : public CodeCompletionHandler {
         Locs.push_back({TemplateName, LessLoc, Prio,
                         P.ParenCount, P.BracketCount, P.BraceCount});
       }
+
     }
 
     /// Mark the current potential missing template location as having been
@@ -2541,6 +2545,9 @@ private:
   }
   void ParseOptionalCXX11VirtSpecifierSeq(VirtSpecifiers &VS, bool IsInterface,
                                           SourceLocation FriendLoc);
+
+  bool isCNPExtends() const;
+  bool isCNPImplements() const;
 
   bool isCXX11FinalKeyword() const;
 

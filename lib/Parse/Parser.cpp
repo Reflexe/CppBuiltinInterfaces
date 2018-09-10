@@ -462,6 +462,9 @@ void Parser::Initialize() {
   Ident_override = nullptr;
   Ident_GNU_final = nullptr;
 
+  Ident_implements = nullptr;
+  Ident_extends = nullptr;
+
   Ident_super = &PP.getIdentifierTable().get("super");
 
   Ident_vector = nullptr;

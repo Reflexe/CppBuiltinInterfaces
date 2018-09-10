@@ -1912,13 +1912,14 @@ Sema::SubstBaseSpecifiers(CXXRecordDecl *Instantiation,
             continue;
           }
 
+          // FIXME: CNP implements.
           if (CXXBaseSpecifier *InstantiatedBase
                 = CheckBaseSpecifier(Instantiation,
                                      Base.getSourceRange(),
                                      Base.isVirtual(),
                                      Base.getAccessSpecifierAsWritten(),
                                      BaseTypeLoc,
-                                     SourceLocation()))
+                                     SourceLocation(), false))
             InstantiatedBases.push_back(InstantiatedBase);
           else
             Invalid = true;
@@ -1946,13 +1947,14 @@ Sema::SubstBaseSpecifiers(CXXRecordDecl *Instantiation,
       continue;
     }
 
+    // FIXME: CNP implements
     if (CXXBaseSpecifier *InstantiatedBase
           = CheckBaseSpecifier(Instantiation,
                                Base.getSourceRange(),
                                Base.isVirtual(),
                                Base.getAccessSpecifierAsWritten(),
                                BaseTypeLoc,
-                               EllipsisLoc))
+                               EllipsisLoc, false))
       InstantiatedBases.push_back(InstantiatedBase);
     else
       Invalid = true;

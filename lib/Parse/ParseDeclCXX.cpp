@@ -1345,6 +1345,8 @@ bool Parser::isValidAfterTypeSpecifier(bool CouldBeBitfield) {
 ///       struct-or-union:
 ///         'struct'
 ///         'union'
+/// [CNP]   interface blalala
+/// [CNP]   class-key extend <class>
 void Parser::ParseClassSpecifier(tok::TokenKind TagTokKind,
                                  SourceLocation StartLoc, DeclSpec &DS,
                                  const ParsedTemplateInfo &TemplateInfo,
@@ -1354,7 +1356,7 @@ void Parser::ParseClassSpecifier(tok::TokenKind TagTokKind,
   DeclSpec::TST TagType;
   if (TagTokKind == tok::kw_struct)
     TagType = DeclSpec::TST_struct;
-  else if (TagTokKind == tok::kw___interface)
+  else if (TagTokKind == tok::kw___interface || TagTokKind == tok::kw_interface)
     TagType = DeclSpec::TST_interface;
   else if (TagTokKind == tok::kw_class)
     TagType = DeclSpec::TST_class;
@@ -1623,7 +1625,7 @@ void Parser::ParseClassSpecifier(tok::TokenKind TagTokKind,
   if (DSC == DeclSpecContext::DSC_trailing)
     TUK = Sema::TUK_Reference;
   else if (Tok.is(tok::l_brace) ||
-           (getLangOpts().CPlusPlus && Tok.is(tok::colon)) ||
+           (getLangOpts().CPlusPlus && (Tok.is(tok::colon) || isCNPExtends() || isCNPImplements())) ||
            (isCXX11FinalKeyword() &&
             (NextToken().is(tok::l_brace) || NextToken().is(tok::colon)))) {
     if (DS.isFriendSpecified()) {
@@ -1890,7 +1892,9 @@ void Parser::ParseClassSpecifier(tok::TokenKind TagTokKind,
   if (TUK == Sema::TUK_Definition) {
     assert(Tok.is(tok::l_brace) ||
            (getLangOpts().CPlusPlus && Tok.is(tok::colon)) ||
-           isCXX11FinalKeyword());
+           isCXX11FinalKeyword() ||
+           isCNPExtends() ||
+           isCNPImplements());
     if (SkipBody.ShouldSkip)
       SkipCXXMemberSpecification(StartLoc, AttrFixitLoc, TagType,
                                  TagOrTempResult.get());
@@ -1971,8 +1975,12 @@ void Parser::ParseClassSpecifier(tok::TokenKind TagTokKind,
 ///         base-specifier '...'[opt]
 ///         base-specifier-list ',' base-specifier '...'[opt]
 void Parser::ParseBaseClause(Decl *ClassDecl) {
-  assert(Tok.is(tok::colon) && "Not a base clause");
-  ConsumeToken();
+  assert((Tok.is(tok::colon) || isCNPExtends() || isCNPImplements()) && "Not a base clause");
+
+  // Leave implements or extends for ParseBaseSpecifier; even if it without
+  // the colon.
+  if (! (isCNPExtends() || isCNPImplements()))
+    ConsumeToken();
 
   // Build up an array of parsed base specifiers.
   SmallVector<CXXBaseSpecifier *, 8> BaseInfo;
@@ -2012,6 +2020,7 @@ void Parser::ParseBaseClause(Decl *ClassDecl) {
 ///                 base-type-specifier
 BaseResult Parser::ParseBaseSpecifier(Decl *ClassDecl) {
   bool IsVirtual = false;
+  bool IsImplements = false;
   SourceLocation StartLoc = Tok.getLocation();
 
   ParsedAttributesWithRange Attributes(AttrFactory);
@@ -2020,6 +2029,13 @@ BaseResult Parser::ParseBaseSpecifier(Decl *ClassDecl) {
   // Parse the 'virtual' keyword.
   if (TryConsumeToken(tok::kw_virtual))
     IsVirtual = true;
+
+  if (isCNPExtends())
+      ConsumeToken();
+  else if (isCNPImplements()) {
+    ConsumeToken();
+    IsImplements = true;
+  }
 
   CheckMisplacedCXX11Attribute(Attributes, StartLoc);
 
@@ -2074,8 +2090,32 @@ BaseResult Parser::ParseBaseSpecifier(Decl *ClassDecl) {
   // base-specifier.
   return Actions.ActOnBaseSpecifier(ClassDecl, Range, Attributes, IsVirtual,
                                     Access, BaseType.get(), BaseLoc,
-                                    EllipsisLoc);
+                                    EllipsisLoc,
+                                    IsImplements);
 }
+
+bool Parser::isCNPExtends() const{
+    if (Tok.isNot(tok::identifier) || !getLangOpts().CPlusPlus)
+        return false;
+
+    if (!Ident_extends) {
+        Ident_extends = &PP.getIdentifierTable().get("extends");
+    }
+
+    return (Tok.getIdentifierInfo() == Ident_extends);
+}
+
+bool Parser::isCNPImplements() const{
+    if (Tok.isNot(tok::identifier) || !getLangOpts().CPlusPlus)
+        return false;
+
+    if (!Ident_implements) {
+        Ident_implements = &PP.getIdentifierTable().get("implements");
+    }
+
+    return (Tok.getIdentifierInfo() == Ident_implements);
+}
+
 
 /// getAccessSpecifierIfPresent - Determine whether the next token is
 /// a C++ access-specifier.
@@ -3139,7 +3179,8 @@ void Parser::ParseCXXMemberSpecification(SourceLocation RecordLoc,
   bool IsFinalSpelledSealed = false;
 
   // Parse the optional 'final' keyword.
-  if (getLangOpts().CPlusPlus && Tok.is(tok::identifier)) {
+  if (getLangOpts().CPlusPlus &&Tok.is(tok::identifier) &&
+          !(isCNPExtends() || isCNPImplements())) {
     VirtSpecifiers::Specifier Specifier = isCXX11VirtSpecifier(Tok);
     assert((Specifier == VirtSpecifiers::VS_Final ||
             Specifier == VirtSpecifiers::VS_GNU_Final ||
@@ -3181,7 +3222,7 @@ void Parser::ParseCXXMemberSpecification(SourceLocation RecordLoc,
     }
   }
 
-  if (Tok.is(tok::colon)) {
+  if (Tok.is(tok::colon) || isCNPExtends() || isCNPImplements()) {
     ParseScope InheritanceScope(this, getCurScope()->getFlags() |
                                           Scope::ClassInheritanceScope);
 

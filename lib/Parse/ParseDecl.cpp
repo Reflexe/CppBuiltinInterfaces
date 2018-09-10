@@ -3677,7 +3677,8 @@ void Parser::ParseDeclarationSpecifiers(DeclSpec &DS,
     case tok::kw_class:
     case tok::kw_struct:
     case tok::kw___interface:
-    case tok::kw_union: {
+    case tok::kw_union:
+    case tok::kw_interface: {
       tok::TokenKind Kind = Tok.getKind();
       ConsumeToken();
 

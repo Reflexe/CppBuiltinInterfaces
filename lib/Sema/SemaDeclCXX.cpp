@@ -2170,7 +2170,8 @@ Sema::CheckBaseSpecifier(CXXRecordDecl *Class,
                          SourceRange SpecifierRange,
                          bool Virtual, AccessSpecifier Access,
                          TypeSourceInfo *TInfo,
-                         SourceLocation EllipsisLoc) {
+                         SourceLocation EllipsisLoc,
+                         bool Implements) {
   QualType BaseType = TInfo->getType();
 
   // C++ [class.union]p1:
@@ -2179,6 +2180,23 @@ Sema::CheckBaseSpecifier(CXXRecordDecl *Class,
     Diag(Class->getLocation(), diag::err_base_clause_on_union)
       << SpecifierRange;
     return nullptr;
+  }
+
+
+  if (Implements) {
+      // Make sure it is a class.
+      if (! (Class->isClass() || Class->isStruct())) {
+          // FIXME: real error
+          Diag(Class->getLocation(), diag::err_cant_use_implement_with_type)
+                  << SpecifierRange << Class;
+          return nullptr;
+      // Make sure we `implements` an interface.
+      } else if (! BaseType->isInterfaceType()) {
+        // FIXME: real error
+          Diag(Class->getLocation(), diag::err_implements_without_interface)
+                  << SpecifierRange;
+          return nullptr;
+      }
   }
 
   if (EllipsisLoc.isValid() &&
@@ -2311,7 +2329,8 @@ Sema::ActOnBaseSpecifier(Decl *classdecl, SourceRange SpecifierRange,
                          ParsedAttributes &Attributes,
                          bool Virtual, AccessSpecifier Access,
                          ParsedType basetype, SourceLocation BaseLoc,
-                         SourceLocation EllipsisLoc) {
+                         SourceLocation EllipsisLoc,
+                         bool Implements) {
   if (!classdecl)
     return true;
 
@@ -2344,7 +2363,7 @@ Sema::ActOnBaseSpecifier(Decl *classdecl, SourceRange SpecifierRange,
 
   if (CXXBaseSpecifier *BaseSpec = CheckBaseSpecifier(Class, SpecifierRange,
                                                       Virtual, Access, TInfo,
-                                                      EllipsisLoc))
+                                                      EllipsisLoc, Implements))
     return BaseSpec;
   else
     Class->setInvalidDecl();

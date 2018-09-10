@@ -7538,6 +7538,9 @@ def err_static_data_member_not_allowed_in_local_class : Error<
   "static data member %0 not allowed in local class %1">;
 
 // C++ derived classes
+def err_cant_use_implement_with_type : Error<"implements can't be used with %0">;
+def err_implements_without_interface : Error<"implements must be used on an interface">;
+
 def err_base_clause_on_union : Error<"unions cannot have base classes">;
 def err_base_must_be_class : Error<"base specifier must name a class">;
 def err_union_as_base_class : Error<"unions cannot be base classes">;
